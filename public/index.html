@@ -1,0 +1,267 @@
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Aeronauticsensor by Thai Tuan</title>
+  <link rel="stylesheet" href="/stylesheets/style.css">
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+</head>
+
+<body>
+  <main>
+    <div class="d-flex" id="page-header">
+      <div>
+        <img src="/images/curved-chevron-left.svg" alt="Back" style="">
+      </div>
+      <div class="d-flex" style="flex-direction: column;align-items: center;gap: 12px;">
+        <div>Current position</div>
+        <div style="padding: 13px 26px; border-radius: 10px; background: rgba(252, 252, 253, 0.2);">Yen Hoa, Cau Giay
+        </div>
+      </div>
+      <div>
+        <img src="/images/curved-chevron-right.svg" alt="Forward">
+      </div>
+    </div>
+    <div class="d-flex" id="info">
+      <div id="">
+        <div id="map"></div>
+      </div>
+    </div>
+
+    <div id="chartSelect">
+      <div class="button">CO</div>
+      <div class="button">CO2</div>
+      <div class="button">Temp</div>
+      <div class="button">Humi</div>
+      <div class="button">UV</div>
+      <div class="button">Light</div>
+    </div>
+    <div id="charts">
+      <div class="canvas-holder d-block"><canvas id="coChart"></canvas></div>
+      <div class="canvas-holder d-none"><canvas id="co2Chart"></canvas></div>
+      <div class="canvas-holder d-none"><canvas id="tempChart"></canvas></div>
+      <div class="canvas-holder d-none"><canvas id="humiChart"></canvas></div>
+      <div class="canvas-holder d-none"><canvas id="uvChart"></canvas></div>
+      <div class="canvas-holder d-none"><canvas id="lightChart"></canvas></div>
+
+    </div>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+  <script>
+    const socket = io();
+    socket.on('connect', () => {
+      console.log('Connected');
+    });
+
+    socket.on("/web/measure", (data) => {
+      console.log(data);
+      charts[0].data.labels.push(getCurTime());
+      addData(charts[0], [data.CO]);
+      addData(charts[1], [data.CO2]);
+      addData(charts[2], [data.TEMP]);
+      addData(charts[3], [data.HUM]);
+      addData(charts[4], [data.UV]);
+      addData(charts[5], [data.Light]);
+      if (charts[0].data.labels.length > 10) {
+        charts[0].data.labels.shift();
+        removeData(charts[0]);
+        removeData(charts[1]);
+        removeData(charts[2]);
+        removeData(charts[3]);
+        removeData(charts[4]);
+        removeData(charts[5]);
+      }
+    });
+
+    function getCurTime() {
+      let date = new Date();
+      return date.toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+
+    function sendDataTest(time) {
+      let i = 0;
+      let id = setInterval(() => {
+        i++;
+        socket.emit('message',
+          {
+            TEMP: random(20, 30),
+            HUM: random(40, 60),
+            CO2: random(100, 110),
+            CO: random(120, 170),
+            UV: random(0, 10),
+            Light: random(0, 100),
+            N: random(0, 100),
+            P: random(0, 100),
+            K: random(0, 100),
+          });
+        if (i == time) {
+          clearInterval(id);
+        }
+      }, 1000);
+    }
+    function random(min, max) {
+      return Math.floor(Math.random() * (max - min + 1) + min);
+    }
+  </script>
+  <!-- code -->
+  <script>
+    const data = {
+      coord:
+      {
+        lat: 21.0186355963452,
+        lon: 105.7984017855646
+      }
+    }
+
+    const points = [];
+
+    //map
+    function createMap(data) {
+      mapboxgl.accessToken =
+        'pk.eyJ1Ijoib2N0b2JvdDEyMyIsImEiOiJjbTJiemNjOHowMTlmMmxzYm0yMDVldm1iIn0.FBQEayjE4OTSXzqZU6A5Kg';
+      const map = new mapboxgl.Map({
+        container: 'map', // container ID
+        center: [data.coord.lon, data.coord.lat], // starting position [lng, lat]. Note that lat must be set between -90 and 90
+        zoom: 12 // starting zoom
+      });
+    }
+
+    createMap(data);
+
+    function customDate(timestamp) {
+      let date = new Date(timestamp * 1000);
+      return date.toLocaleDateString('en-US', {
+        day: "numeric",
+        month: "short",
+      })
+    }
+
+    function addPoints() {
+      points.forEach(point => {
+        const marker = new mapboxgl.Marker()
+          .setLngLat([point.lng, point.lat])
+          .setPopup(new mapboxgl.Popup().setHTML(`<div>${point.time}</div>`))
+          .addTo(map);
+      });
+    }
+
+    //chart
+    let chartIDs = ['coChart', 'co2Chart', 'tempChart', 'humiChart', 'uvChart', 'lightChart']
+    let chartLabels = [['CO'], ['CO2'], ['Temp'], ['Humi'], ['UV'], ['Light']]
+    let chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            display: false,
+          },
+          grid: {
+            display: false,
+          },
+          label: {
+            display: false,
+          }
+        },
+        x: {
+          ticks: {
+            maxRotation: 90,
+            minRotation: 0
+          },
+          grid: {
+            display: false,
+          }
+        }
+      },
+
+      plugins: {
+        legend: {
+          display: false
+        },
+        datalabels: {
+          anchor: 'center',
+          align: 'top',
+          offset: "1",
+          color: "#9e77ed",
+          font: {
+            size: 12,
+          },
+        }
+      },
+      tooltips: {
+        enabled: true, // Enable tooltips on hover
+        callbacks: {
+          label: function (tooltipItem, data) {
+            return tooltipItem.yLabel; // Show the y-axis value in the tooltip
+          }
+        }
+      }
+    }
+    let charts = []
+
+    function genChart() {
+      fetch("/chartdata")
+        .then(res => res.json())
+        .then(data => {
+          console.log(data)
+          data.forEach(item => {
+            points.push({
+              lat: item.location.latitude,
+              lng: item.location.longitude,
+              time: customDate(item.time),
+              warning: item.warning
+            })
+          })
+          addPoints();
+          let labels = data.map(item => item.time.slice(0, 5))
+
+          for (let i = 0; i < chartLabels.length; i++) {
+            let ctx = document.getElementById(chartIDs[i]).getContext('2d');
+            let chart = new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: labels,
+                datasets: chartLabels[i].map(label => {
+                  return {
+                    label: label,
+                    data: data.map(item => item.data[label]),
+                    fill: false,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                  }
+                })
+              },
+              options: chartOptions,
+              plugins: [ChartDataLabels]
+            });
+            charts.push(chart)
+          }
+        })
+    }
+    genChart();
+
+    function addData(chart /*Chart*/, newData/* array*/) {
+      chart.data.datasets.forEach((dataset, i) => {
+        dataset.data.push(newData[i]);
+      });
+      chart.update();
+    }
+    function removeData(chart) {
+      chart.data.datasets.forEach((dataset) => {
+        dataset.data.shift();
+      });
+      chart.update();
+    }
+  </script>
+</body>
+
+</html>
