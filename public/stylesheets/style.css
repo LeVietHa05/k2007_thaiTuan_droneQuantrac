@@ -229,6 +229,8 @@ main {
   margin-top: 32px;
   display: grid;
   grid-template-columns: repeat(1, 1fr);
+  position: relative;
+  overflow: hidden;
 }
 
 #charts > div {
@@ -241,6 +243,7 @@ main {
   height: 480px;
   border-radius: 12px;
   background: rgba(230, 230, 230, 0.4);
+  transition: all 1s;
 }
 
 #chartSelect {
@@ -252,14 +255,44 @@ main {
   border-radius: 12px;
   padding: 8px;
   display: flex;
+  justify-content: center;
   gap: 8px;
+  /* position: absolute; */
+  transition: transform 0.5s ease-in-out;
 }
 .canvas-holder {
+  display: none;
   border-radius: 8px;
   height: calc(100% - 2 * 8px - 48px);
   padding: 8px;
   border: 1px solid var(--Error-300, #fda29b);
   background: linear-gradient(0deg, #b7ebc9 -5.62%, #e1faeb 100%);
+}
+
+.canvas-holder.active {
+  display: block;
+}
+
+#dots {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.dot {
+  height: 15px;
+  width: 15px;
+  margin: 0 5px;
+  background-color: #bbb;
+  border-radius: 50%;
+  display: inline-block;
+  cursor: pointer;
+}
+.dot:hover {
+  background-color: #aaaaaa;
+}
+
+.active-dot {
+  background-color: #717171;
 }
 
 .button {
@@ -270,6 +303,9 @@ main {
   backdrop-filter: blur(4px);
 }
 .button:hover {
+  background-color: rgb(134, 229, 172);
+}
+.active-button {
   background-color: rgba(163, 228, 232, 0.816);
 }
 canvas {

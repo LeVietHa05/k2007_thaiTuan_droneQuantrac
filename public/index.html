@@ -5,8 +5,12 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Aeronauticsensor by Thai Tuan</title>
   <link rel="stylesheet" href="/stylesheets/style.css">
-  <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet">
-  <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
+  <link rel='stylesheet' href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.css'
+    type='text/css' />
+  <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.js'></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf/turf.min.js"></script>
 </head>
 
 <body>
@@ -30,6 +34,17 @@
       </div>
     </div>
 
+    <div id="charts">
+      <div class="canvas-holder active"><canvas id="coChart"></canvas></div>
+      <div class="canvas-holder disappear"><canvas id="co2Chart"></canvas></div>
+      <div class="canvas-holder disappear"><canvas id="tempChart"></canvas></div>
+      <div class="canvas-holder disappear"><canvas id="humiChart"></canvas></div>
+      <div class="canvas-holder disappear"><canvas id="uvChart"></canvas></div>
+      <div class="canvas-holder disappear"><canvas id="lightChart"></canvas></div>
+    </div>
+    <div id="dots">
+      <!-- Dots will be dynamically added here -->
+    </div>
     <div id="chartSelect">
       <div class="button">CO</div>
       <div class="button">CO2</div>
@@ -38,19 +53,72 @@
       <div class="button">UV</div>
       <div class="button">Light</div>
     </div>
-    <div id="charts">
-      <div class="canvas-holder d-block"><canvas id="coChart"></canvas></div>
-      <div class="canvas-holder d-none"><canvas id="co2Chart"></canvas></div>
-      <div class="canvas-holder d-none"><canvas id="tempChart"></canvas></div>
-      <div class="canvas-holder d-none"><canvas id="humiChart"></canvas></div>
-      <div class="canvas-holder d-none"><canvas id="uvChart"></canvas></div>
-      <div class="canvas-holder d-none"><canvas id="lightChart"></canvas></div>
-
-    </div>
   </main>
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const canvasHolders = document.querySelectorAll('.canvas-holder');
+      const dotsContainer = document.getElementById('dots');
+      const buttons = document.querySelectorAll('#chartSelect .button');
+      let currentIndex = 0;
+      let prevIndex = 0;
+
+
+      // Create dots
+      canvasHolders.forEach((holder, index) => {
+        const dot = document.createElement('span');
+        dot.classList.add('dot');
+        if (index === currentIndex) {
+          dot.classList.add('active-dot');
+          buttons[index].classList.add('active');
+        }
+        dot.addEventListener('click', () => {
+          prevIndex = currentIndex;
+          currentIndex = index;
+          showSlide(currentIndex, prevIndex);
+        });
+        buttons[index].addEventListener('click', () => {
+          showSlide(index);
+        });
+        dotsContainer.appendChild(dot);
+      });
+
+      function showSlide(current, previous) {
+        canvasHolders.forEach((holder, index) => {
+          holder.classList.remove('active');
+          holder.style.transform = 'translateX(0)';
+          if (index === current) {
+            holder.classList.add('active');
+            holder.style.transform = current > previous ? 'translateX(100%)' : 'translateX(-100%)';
+            setTimeout(() => {
+              holder.style.transform = 'translateX(0)';
+            }, 10);
+          }
+          if (index === previous) {
+            holder.classList.add('active')
+            holder.style.transform = current > previous ? 'translateX(-100%)' : 'translateX(100%)';
+            setTimeout(() => {
+              holder.classList.remove('active');
+            }, 500);
+          }
+        });
+        const dots = document.querySelectorAll('.dot');
+        dots.forEach((dot, i) => {
+          dot.classList.toggle('active-dot', i === current);
+        });
+        buttons.forEach((button, i) => {
+          button.classList.toggle('active-button', i === current);
+        });
+      }
+
+      // Show the first slide initially
+      showSlide(currentIndex);
+    });
+
+  </script>
   <script>
     const socket = io();
     socket.on('connect', () => {
@@ -120,14 +188,21 @@
         lon: 105.7984017855646
       }
     }
+    let circleRadius = 100; //meters
+    const paint = {
+      warning: {
+        
+      }
+    }
 
     const points = [];
+    let map
 
     //map
     function createMap(data) {
       mapboxgl.accessToken =
         'pk.eyJ1Ijoib2N0b2JvdDEyMyIsImEiOiJjbTJiemNjOHowMTlmMmxzYm0yMDVldm1iIn0.FBQEayjE4OTSXzqZU6A5Kg';
-      const map = new mapboxgl.Map({
+      map = new mapboxgl.Map({
         container: 'map', // container ID
         center: [data.coord.lon, data.coord.lat], // starting position [lng, lat]. Note that lat must be set between -90 and 90
         zoom: 12 // starting zoom
@@ -135,6 +210,42 @@
     }
 
     createMap(data);
+    //draw control
+    var Draw = new MapboxDraw();
+    map.addControl(Draw, 'top-left');
+
+    map.on('load', function () {
+      //draw 
+      map.addSource('circle', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [turf.circle([data.coord.lon, data.coord.lat], circleRadius / 1000 /* 100 m*/, { units: 'kilometers' })]
+        }
+      })
+
+      genChart();
+    })
+
+    function addSource(sourceConfig) {
+      const { id, config } = sourceConfig;
+      map.addSource(id, config);
+    }
+
+    function addLayer(layerConfig) { //basicly adding circle layer
+      const { id, type, source /*using source id*/, paint } = layerConfig;
+      //if provide source 
+      // if (source) {
+      //   map.addSource(source.id, source.config);
+      // }
+      //add layer
+      map.addLayer({
+        id,
+        type,
+        source,
+        paint,
+      })
+    }
 
     function customDate(timestamp) {
       let date = new Date(timestamp * 1000);
@@ -144,14 +255,25 @@
       })
     }
 
-    function addPoints() {
-      points.forEach(point => {
-        const marker = new mapboxgl.Marker()
-          .setLngLat([point.lng, point.lat])
-          .setPopup(new mapboxgl.Popup().setHTML(`<div>${point.time}</div>`))
-          .addTo(map);
-      });
+    function addPoints(lng, lat, popup, info) {
+      const marker = new mapboxgl.Marker()
+        .setLngLat([lng, lat])
+        .setPopup(new mapboxgl.Popup().setHTML(`<div>
+            <ul>
+              <li>Last reading: ${info.time}</li>
+              <li>CO: ${info.CO}</li>
+              <li>CO2: ${info.CO2}</li>
+              <li>Temp: ${info.TEMP}</li>
+              <li>Humi: ${info.HUM}</li>
+              <li>UV: ${info.UV}</li>
+              <li>Light: ${info.Light}</li>
+            </ul>
+            Warning: ${info.warning ? popup : 'No'}
+          </div>`))
+        .addTo(map);
     }
+
+    // addPoints(data.coord.lon, data.coord.lat);
 
     //chart
     let chartIDs = ['coChart', 'co2Chart', 'tempChart', 'humiChart', 'uvChart', 'lightChart']
@@ -169,7 +291,7 @@
             display: false,
           },
           label: {
-            display: false,
+            display: true,
           }
         },
         x: {
@@ -185,7 +307,7 @@
 
       plugins: {
         legend: {
-          display: false
+          display: true
         },
         datalabels: {
           anchor: 'center',
@@ -213,17 +335,38 @@
         .then(res => res.json())
         .then(data => {
           console.log(data)
-          data.forEach(item => {
-            points.push({
-              lat: item.location.latitude,
-              lng: item.location.longitude,
-              time: customDate(item.time),
-              warning: item.warning
-            })
-          })
-          addPoints();
-          let labels = data.map(item => item.time.slice(0, 5))
 
+          data.forEach((dataPoint, index) => {
+            let layerConfig = {
+              id: `circle-fill-${index}`,
+              type: 'fill',
+              paint: {
+                'fill-color': dataPoint.warning ? 'red' : 'green',
+                'fill-opacity': 0.5
+              }
+            }
+            //adding source to the map
+            addSource({
+              id: `circle-${index}`,
+              config: {
+                type: 'geojson',
+                data: {
+                  type: 'FeatureCollection',
+                  features: [turf.circle([dataPoint.location.longitude, dataPoint.location.latitude], circleRadius / 1000 /* 100 m*/, { units: 'kilometers' })]
+                }
+              }
+            })
+
+            layerConfig.source = `circle-${index}`;
+            //adding circle layer to the map
+            addLayer(layerConfig);
+            //add points to the map
+            addPoints(dataPoint.location.longitude, dataPoint.location.latitude, dataPoint.warning, dataPoint);
+          })
+
+          //create labels
+          let labels = data.map(item => item.time.slice(0, 5))
+          //add data to chart
           for (let i = 0; i < chartLabels.length; i++) {
             let ctx = document.getElementById(chartIDs[i]).getContext('2d');
             let chart = new Chart(ctx, {
@@ -247,7 +390,6 @@
           }
         })
     }
-    genChart();
 
     function addData(chart /*Chart*/, newData/* array*/) {
       chart.data.datasets.forEach((dataset, i) => {
