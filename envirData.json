@@ -31,11 +31,11 @@
             "UV": 4.87
         },
         "location": {
-            "latitude": 21.0286,
+            "latitude": 21.0196,
             "longitude": 105.7984,
             "height": 100
         },
-        "warning": ""
+        "warning": "kjlshdgflk"
     },
     {
         "id": 3,
@@ -50,7 +50,7 @@
             "UV": 4.93
         },
         "location": {
-            "latitude": 21.0386,
+            "latitude": 21.0206,
             "longitude": 105.7984,
             "height": 100
         },
@@ -69,10 +69,44 @@
             "UV": 5.63
         },
         "location": {
-            "latitude": 21.0486,
+            "latitude": 21.0216,
             "longitude": 105.7984,
             "height": 100
         },
         "warning": ""
+    },
+    {
+        "id": 5,
+        "date": "2024-10-19",
+        "time": "11:46:44",
+        "data": {
+            "TEMP": 24.6,
+            "HUM": 50.35,
+            "CO2": 105.4,
+            "CO": 142.95,
+            "Light": 62.7,
+            "UV": 5.5
+        },
+        "location": {
+            "latitute": null,
+            "longitute": null
+        }
+    },
+    {
+        "id": 6,
+        "date": "2024-10-19",
+        "time": "11:47:21",
+        "data": {
+            "TEMP": 25.55,
+            "HUM": 48.85,
+            "CO2": 105.15,
+            "CO": 146.45,
+            "Light": 50.9,
+            "UV": 6.05
+        },
+        "location": {
+            "latitute": null,
+            "longitute": null
+        }
     }
 ]

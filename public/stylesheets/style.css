@@ -100,6 +100,24 @@ main {
 .border-1 {
   border-bottom: 1px solid var(--Brand-700, #6941c6);
 }
+.border-2 {
+  border: 2px solid var(--Brand-700, #6941c6);
+}
+
+#start-button {
+  background: rgba(211, 196, 235, 0.582);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.5s;
+  width: 100px;
+}
+#start-button:hover {
+  background: rgba(163, 228, 232, 0.816);
+}
+#longitude, #latitude {
+  padding: 4px;
+}
 
 #page-header {
   width: 1280px;
@@ -215,6 +233,13 @@ main {
   height: 100%;
   border-radius: 4px;
   background-color: #9e77ed;
+}
+
+#warning {
+  width: 1280px;
+  margin: auto;
+  gap: 32px;
+  margin-top: 32px;
 }
 
 #map {

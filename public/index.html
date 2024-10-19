@@ -21,7 +21,12 @@
       </div>
       <div class="d-flex" style="flex-direction: column;align-items: center;gap: 12px;">
         <div>Current position</div>
-        <div style="padding: 13px 26px; border-radius: 10px; background: rgba(252, 252, 253, 0.2);">Yen Hoa, Cau Giay
+        <div style="padding: 13px 26px; border-radius: 10px; background: rgba(252, 252, 253, 0.2);">
+          <div style="display: flex; justify-content: space-between;"><label for="latitude">Latitude:</label> <input
+              type="number" placeholder="" id="latitude"></div>
+          <div style="display: flex; justify-content: space-between;"><label for="longitude">Longitude:</label> <input
+              type="number" id="longitude"> </div>
+          <div id="start-button" class="border-2">Start</div>
         </div>
       </div>
       <div>
@@ -31,6 +36,18 @@
     <div class="d-flex" id="info">
       <div id="">
         <div id="map"></div>
+      </div>
+    </div>
+
+    <div id="warning">
+      <div class="d-flex">
+        <div class="warning-icon">
+          <img src="/images/warning-icon.svg" alt="Warning">
+        </div>
+        <div class="warning-text">
+          <div>Warning</div>
+          <div>High CO2 level detected</div>
+        </div>
       </div>
     </div>
 
@@ -118,6 +135,30 @@
       showSlide(currentIndex);
     });
 
+    let isStart = false;
+
+    let start_button = document.querySelector("#start-button");
+    start_button.addEventListener("click", () => {
+      let lat = document.querySelector("#latitude").value;
+      let lon = document.querySelector("#longitude").value;
+      if (!lat || !lon) {
+        alert("Please enter latitude and longitude");
+        return;
+      }
+      if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        alert("Invalid latitude or longitude");
+        return;
+      }
+      data.coord.lat = lat;
+      data.coord.lon = lon;
+      isStart = true;
+      map.flyTo({
+        center: [lon, lat],
+        zoom: 15
+      });
+      addPoints(lon, lat);
+      socket.emit('start', data);
+    });
   </script>
   <script>
     const socket = io();
@@ -126,24 +167,44 @@
     });
 
     socket.on("/web/measure", (data) => {
-      console.log(data);
-      charts[0].data.labels.push(getCurTime());
-      addData(charts[0], [data.CO]);
-      addData(charts[1], [data.CO2]);
-      addData(charts[2], [data.TEMP]);
-      addData(charts[3], [data.HUM]);
-      addData(charts[4], [data.UV]);
-      addData(charts[5], [data.Light]);
-      if (charts[0].data.labels.length > 10) {
-        charts[0].data.labels.shift();
-        removeData(charts[0]);
-        removeData(charts[1]);
-        removeData(charts[2]);
-        removeData(charts[3]);
-        removeData(charts[4]);
-        removeData(charts[5]);
+      if (isStart) {
+        charts[0].data.labels.push(getCurTime());
+        addData(charts[0], [data.CO]);
+        addData(charts[1], [data.CO2]);
+        addData(charts[2], [data.TEMP]);
+        addData(charts[3], [data.HUM]);
+        addData(charts[4], [data.UV]);
+        addData(charts[5], [data.Light]);
+        if (charts[0].data.labels.length > 30) {
+          alert("Clearing chart data after 5 seconds");
+          setTimeout(() => {
+            for (let i = 0; i < 30; i++) {
+              charts[0].data.labels.shift();
+              removeData(charts[0]);
+              removeData(charts[1]);
+              removeData(charts[2]);
+              removeData(charts[3]);
+              removeData(charts[4]);
+              removeData(charts[5]);
+            }
+          }, 5000);
+        }
+      } else {
+        console.log("Not start yet");
       }
+      console.log(data);
     });
+
+    socket.on("/web/start", (data) => {
+      console.log("Start");
+      console.log(data);
+    });
+
+    socket.on("/web/newData", (data) => {
+      console.log("New data");
+      console.log(data);
+      genChart();
+    })
 
     function getCurTime() {
       let date = new Date();
@@ -189,11 +250,6 @@
       }
     }
     let circleRadius = 100; //meters
-    const paint = {
-      warning: {
-        
-      }
-    }
 
     const points = [];
     let map
@@ -205,7 +261,7 @@
       map = new mapboxgl.Map({
         container: 'map', // container ID
         center: [data.coord.lon, data.coord.lat], // starting position [lng, lat]. Note that lat must be set between -90 and 90
-        zoom: 12 // starting zoom
+        zoom: 15 // starting zoom
       });
     }
 
@@ -258,7 +314,8 @@
     function addPoints(lng, lat, popup, info) {
       const marker = new mapboxgl.Marker()
         .setLngLat([lng, lat])
-        .setPopup(new mapboxgl.Popup().setHTML(`<div>
+      if (popup)
+        marker.setPopup(new mapboxgl.Popup().setHTML(`<div>
             <ul>
               <li>Last reading: ${info.time}</li>
               <li>CO: ${info.CO}</li>
@@ -268,9 +325,9 @@
               <li>UV: ${info.UV}</li>
               <li>Light: ${info.Light}</li>
             </ul>
-            Warning: ${info.warning ? popup : 'No'}
+            Warning: ${popup ? popup : 'No'}
           </div>`))
-        .addTo(map);
+      marker.addTo(map);
     }
 
     // addPoints(data.coord.lon, data.coord.lat);
@@ -341,7 +398,7 @@
               id: `circle-fill-${index}`,
               type: 'fill',
               paint: {
-                'fill-color': dataPoint.warning ? 'red' : 'green',
+                'fill-color': dataPoint.warning ? 'red' : '#00E400',
                 'fill-opacity': 0.5
               }
             }
@@ -361,7 +418,7 @@
             //adding circle layer to the map
             addLayer(layerConfig);
             //add points to the map
-            addPoints(dataPoint.location.longitude, dataPoint.location.latitude, dataPoint.warning, dataPoint);
+            addPoints(dataPoint.location.longitude, dataPoint.location.latitude, dataPoint.warning, dataPoint.data);
           })
 
           //create labels
@@ -372,11 +429,13 @@
             let chart = new Chart(ctx, {
               type: 'line',
               data: {
-                labels: labels,
+                // labels: labels,
+                labels: [],//empty label (add later when reading realtime data)
                 datasets: chartLabels[i].map(label => {
                   return {
                     label: label,
-                    data: data.map(item => item.data[label]),
+                    // data: data.map(item => item.data[label]),
+                    data: [], //empty data (add later when reading realtime data)
                     fill: false,
                     borderColor: 'rgb(75, 192, 192)',
                     tension: 0.1

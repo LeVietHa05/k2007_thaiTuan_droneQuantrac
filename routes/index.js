@@ -1,6 +1,14 @@
 var express = require('express');
 var router = express.Router();
-var { envirData } = require("../socketio");
+const fs = require("fs");
+
+let envirData = fs.readFileSync("envirData.json", "utf-8");
+envirData = JSON.parse(envirData);
+//watch file envir data
+fs.watch("envirData.json", (event, filename) => {
+  envirData = fs.readFileSync("envirData.json", "utf-8");
+  envirData = JSON.parse(envirData);
+});
 
 /* GET home page. */
 router.get('/', function (req, res, next) {
