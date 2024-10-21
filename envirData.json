@@ -35,7 +35,7 @@
             "longitude": 105.7984,
             "height": 100
         },
-        "warning": "kjlshdgflk"
+        "warning": "test"
     },
     {
         "id": 3,
@@ -54,7 +54,7 @@
             "longitude": 105.7984,
             "height": 100
         },
-        "warning": ""
+        "warning": "test2"
     },
     {
         "id": 4,
@@ -88,8 +88,8 @@
             "UV": 5.5
         },
         "location": {
-            "latitute": null,
-            "longitute": null
+            "latitute": 0,
+            "longitute": 0
         }
     },
     {
@@ -105,8 +105,45 @@
             "UV": 6.05
         },
         "location": {
-            "latitute": null,
-            "longitute": null
+            "latitute": 0,
+            "longitute": 0
         }
+    },
+    {
+        "id": 7,
+        "date": "2024-10-21",
+        "time": "19:51:15",
+        "data": {
+            "TEMP": 24.8,
+            "HUM": 50.15,
+            "CO2": 105.2,
+            "CO": 142.55,
+            "Light": 47.65,
+            "UV": 5.2
+        },
+        "location": {
+            "latitude": "21",
+            "longitude": "105",
+            "height": 100
+        }
+    },
+    {
+        "id": 8,
+        "date": "2024-10-21",
+        "time": "20:41:25",
+        "data": {
+            "TEMP": 24.75,
+            "HUM": 50.45,
+            "CO2": 103.85,
+            "CO": 141.5,
+            "Light": 45.5,
+            "UV": 4.6
+        },
+        "location": {
+            "latitude": "21.0186",
+            "longitude": "105.7994",
+            "height": 100
+        },
+        "warning": "Moderate UV. Seek shade during midday hours, wear protective clothing, a wide-brimmed hat, and UV-blocking sunglasses"
     }
 ]

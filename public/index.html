@@ -44,10 +44,9 @@
         <div class="warning-icon">
           <img src="/images/warning-icon.svg" alt="Warning">
         </div>
-        <div class="warning-text">
-          <div>Warning</div>
-          <div>High CO2 level detected</div>
-        </div>
+        <ul class="warning-text" id="warning-content">
+          <!-- Warning will be dynamically added here -->
+        </ul>
       </div>
     </div>
 
@@ -156,7 +155,15 @@
         center: [lon, lat],
         zoom: 15
       });
-      addPoints(lon, lat);
+      addPoints(lon, lat, 'No warning', {
+        time: getCurTime(),
+        CO: 0,
+        CO2: 0,
+        TEMP: 0,
+        HUM: 0,
+        UV: 0,
+        Light: 0
+      });
       socket.emit('start', data);
     });
   </script>
@@ -165,34 +172,38 @@
     socket.on('connect', () => {
       console.log('Connected');
     });
-
+    const datalength = 20;
     socket.on("/web/measure", (data) => {
       if (isStart) {
-        charts[0].data.labels.push(getCurTime());
+        for (let i = 0; i < charts.length; i++) {
+          charts[i].data.labels.push(getCurTime());
+        }
         addData(charts[0], [data.CO]);
         addData(charts[1], [data.CO2]);
         addData(charts[2], [data.TEMP]);
         addData(charts[3], [data.HUM]);
         addData(charts[4], [data.UV]);
         addData(charts[5], [data.Light]);
-        if (charts[0].data.labels.length > 30) {
-          alert("Clearing chart data after 5 seconds");
-          setTimeout(() => {
-            for (let i = 0; i < 30; i++) {
-              charts[0].data.labels.shift();
-              removeData(charts[0]);
-              removeData(charts[1]);
-              removeData(charts[2]);
-              removeData(charts[3]);
-              removeData(charts[4]);
-              removeData(charts[5]);
-            }
-          }, 5000);
+        if (charts[0].data.labels.length >= datalength) {
+          // for (let i = 0; i < datalength; i++) {
+          charts[0].data.labels.shift();
+          removeData(charts[0]);
+          removeData(charts[1]);
+          removeData(charts[2]);
+          removeData(charts[3]);
+          removeData(charts[4]);
+          removeData(charts[5]);
+          // }
         }
       } else {
         console.log("Not start yet");
       }
       console.log(data);
+    });
+
+    socket.on("init", (data) => {
+      console.log("Init");
+      isStart = data
     });
 
     socket.on("/web/start", (data) => {
@@ -203,7 +214,7 @@
     socket.on("/web/newData", (data) => {
       console.log("New data");
       console.log(data);
-      genChart();
+      updateData(data);
     })
 
     function getCurTime() {
@@ -314,23 +325,29 @@
     function addPoints(lng, lat, popup, info) {
       const marker = new mapboxgl.Marker()
         .setLngLat([lng, lat])
-      if (popup)
-        marker.setPopup(new mapboxgl.Popup().setHTML(`<div>
+        .setPopup(new mapboxgl.Popup().setHTML(`<div>
             <ul>
-              <li>Last reading: ${info.time}</li>
-              <li>CO: ${info.CO}</li>
-              <li>CO2: ${info.CO2}</li>
-              <li>Temp: ${info.TEMP}</li>
-              <li>Humi: ${info.HUM}</li>
-              <li>UV: ${info.UV}</li>
-              <li>Light: ${info.Light}</li>
+              <li>Last reading: ${info.time ? info.time : ""}</li>
+              <li>Point: ${points.length + 1}</li>
+              <li>Location: ${lat}, ${lng}</li>
+              <li>CO: ${info.CO ? info.CO : ""}</li>
+              <li>CO2: ${info.CO2 ? info.CO2 : ""}</li>
+              <li>Temp: ${info.TEMP ? info.TEMP : ""}</li>
+              <li>Humi: ${info.HUM ? info.HUM : ""}</li>
+              <li>UV: ${info.UV ? info.UV : ""}</li>
+              <li>Light: ${info.Light ? info.Light : ""}</li>
             </ul>
             Warning: ${popup ? popup : 'No'}
           </div>`))
-      marker.addTo(map);
+        .addTo(map);
+
+      points.push({ id: points.length, marker });
     }
 
-    // addPoints(data.coord.lon, data.coord.lat);
+    function addWarning(warning, pointIndex) {
+      let warningContentDiv = document.querySelector("#warning-content");
+      warningContentDiv.innerHTML += `<li>Point ${pointIndex}: ${warning}</li>`;
+    }
 
     //chart
     let chartIDs = ['coChart', 'co2Chart', 'tempChart', 'humiChart', 'uvChart', 'lightChart']
@@ -394,6 +411,7 @@
           console.log(data)
 
           data.forEach((dataPoint, index) => {
+            if (!dataPoint.location.latitude) return;
             let layerConfig = {
               id: `circle-fill-${index}`,
               type: 'fill',
@@ -419,6 +437,10 @@
             addLayer(layerConfig);
             //add points to the map
             addPoints(dataPoint.location.longitude, dataPoint.location.latitude, dataPoint.warning, dataPoint.data);
+            //add warning
+            if (dataPoint.warning) {
+              addWarning(dataPoint.warning, points.length);
+            }
           })
 
           //create labels
@@ -450,6 +472,12 @@
         })
     }
 
+    function updateData(newData) {
+      points[points.length - 1].marker.remove();
+      addPoints(data.location.longitude, data.location.latitude, newData.popup, newData.data);
+      addWarning(newData.popup, points.length);
+    }
+
     function addData(chart /*Chart*/, newData/* array*/) {
       chart.data.datasets.forEach((dataset, i) => {
         dataset.data.push(newData[i]);
@@ -461,6 +489,17 @@
         dataset.data.shift();
       });
       chart.update();
+    }
+    function clearChart() {
+      for (let i = 0; i < datalength; i++) {
+        charts[0].data.labels.shift();
+        removeData(charts[0]);
+        removeData(charts[1]);
+        removeData(charts[2]);
+        removeData(charts[3]);
+        removeData(charts[4]);
+        removeData(charts[5]);
+      }
     }
   </script>
 </body>

@@ -20,6 +20,9 @@ a {
 img {
   max-width: 100%;
 }
+li {
+  list-style: none;
+}
 
 main {
   color: black;
@@ -240,6 +243,9 @@ main {
   margin: auto;
   gap: 32px;
   margin-top: 32px;
+  max-height: 300px;
+  overflow-y: auto;
+  
 }
 
 #map {
